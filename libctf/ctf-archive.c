@@ -23,7 +23,10 @@
 static off_t arc_write_one_ctf (ctf_file_t * f, int fd, size_t threshold);
 static ctf_file_t *ctf_arc_open_by_offset (const ctf_archive_t * arc,
 					   size_t offset, int *errp);
-static int sort_modent_by_name (const void *one, const void *two, void *n);
+static int sort_modent_by_name (const void *one, const void *two);
+
+/* qsort cmp name */
+const char *sort_nametbl = NULL;
 
 /* bsearch() internal state.  */
 static __thread char *search_nametbl;
@@ -152,10 +155,11 @@ ctf_arc_write (const char *file, ctf_file_t ** ctf_files, size_t ctf_file_cnt,
       modent++;
     }
 
-  qsort_r ((ctf_archive_modent_t *) ((char *) archdr
+  sort_nametbl = nametbl;
+  qsort ((ctf_archive_modent_t *) ((char *) archdr
 				     + sizeof (struct ctf_archive)),
 	   le64toh (archdr->ctfa_nfiles),
-	   sizeof (struct ctf_archive_modent), sort_modent_by_name, nametbl);
+	   sizeof (struct ctf_archive_modent), sort_modent_by_name);
 
    /* Now the name table.  */
 
@@ -273,11 +277,11 @@ arc_write_one_ctf (ctf_file_t * f, int fd, size_t threshold)
 /* qsort() function to sort the array of struct ctf_archive_modents into
    ascending name order.  */
 static int
-sort_modent_by_name (const void *one, const void *two, void *n)
+sort_modent_by_name (const void *one, const void *two)
 {
   const struct ctf_archive_modent *a = one;
   const struct ctf_archive_modent *b = two;
-  char *nametbl = n;
+  const char* nametbl = sort_nametbl;
 
   return strcmp (&nametbl[le64toh (a->name_offset)],
 		 &nametbl[le64toh (b->name_offset)]);
